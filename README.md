@@ -10,7 +10,7 @@ Start the app without activating the virtual environment:
 ./start.sh
 ```
 
-The script creates `.venv` and installs runtime dependencies if needed, then starts the development server with automatic reload. Stop it with Ctrl+C. Pass server options as needed, for example `./start.sh --port 8080`.
+The script creates `.venv` and installs runtime dependencies if needed, then starts the development server on `0.0.0.0:8000` with automatic reload. Stop it with Ctrl+C. Pass server options as needed, for example `./start.sh --port 8080`.
 
 For manual setup (including test dependencies):
 
@@ -18,7 +18,7 @@ For manual setup (including test dependencies):
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --reload
 ```
 
 Open http://127.0.0.1:8000. SQLite is initialized automatically at `data/resume.sqlite3`; startup preserves saved data. Set `RESUME_DB` to override the database file. Click a section title or bullet to edit it directly; leaving the text saves automatically. Enter saves and leaves any editing field, Shift+Enter inserts a line break, and Escape cancels unsaved typing. Every bullet and subitem has a trash button and a plus button. Plus opens a new subitem field that saves on blur; leaving it empty or pressing Escape cancels it. The single plus button at the bottom opens a blank section title; Enter or leaving the field saves it, and an empty title or Escape cancels it. Section titles also have plus and trash buttons for adding top-level bullets and deleting the entire section. Every trash button asks for confirmation before deleting. Inline editing requires JavaScript. HTMX is loaded from a versioned CDN URL and requires internet access; add/delete forms also work through ordinary POST/redirect requests.

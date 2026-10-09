@@ -12,4 +12,4 @@ if ! .venv/bin/python -c 'import uvicorn, fastapi, jinja2, multipart' >/dev/null
   .venv/bin/python -m pip install -r requirements.txt
 fi
 
-exec .venv/bin/python -m uvicorn app.main:app --reload "$@"
+exec .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --reload "$@"
