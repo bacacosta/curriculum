@@ -1,54 +1,43 @@
 {% macro item_list(items, section_id) %}
 <ul>
 {% for item in items %}
-  <li>
-    <p class="content">{{ item.content }}</p>
-    <details>
-      <summary>Edit / add subitem</summary>
-      <form action="/items/{{ item.id }}/edit" method="post" hx-post="/items/{{ item.id }}/edit">
-        <label>Bullet text <textarea name="content" required maxlength="5000">{{ item.content }}</textarea></label>
-        <button>Save item</button>
-      </form>
-      <form action="/sections/{{ section_id }}/items" method="post" hx-post="/sections/{{ section_id }}/items">
-        <input type="hidden" name="parent_id" value="{{ item.id }}">
-        <label>Subitem <textarea name="content" required maxlength="5000"></textarea></label>
-        <button>Add subitem</button>
-      </form>
-      <form action="/items/{{ item.id }}/delete" method="post" hx-post="/items/{{ item.id }}/delete" hx-confirm="Delete this item and all its subitems?">
-        <button class="danger">Delete item and subitems</button>
-      </form>
-    </details>
+  <li data-item-id="{{ item.id }}">
+    <div class="item-row">
+      <p class="content inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="Bullet text" aria-multiline="true" tabindex="0" data-url="/items/{{ item.id }}/edit" data-field="content" data-limit="5000">{{ item.content }}</p>
+      <div class="item-actions">
+        <button type="button" class="icon-button drag-handle" draggable="true" aria-label="Move bullet" title="Drag to move; arrow keys reorder, Right nests, Left unnests">⠿</button>
+        <button type="button" class="icon-button add-subitem" aria-label="Add subitem" title="Add subitem" data-section-id="{{ section_id }}" data-parent-id="{{ item.id }}">+</button>
+        <button type="button" class="icon-button delete-item" aria-label="Delete item and subitems" title="Delete item and subitems" data-url="/items/{{ item.id }}/delete">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
+        </button>
+      </div>
+    </div>
     {% if item.children %}{{ item_list(item.children, section_id) }}{% endif %}
   </li>
 {% endfor %}
 </ul>
 {% endmacro %}
+{% macro section_card(section) %}
+  <section data-section-id="{{ section.id }}">
+    <div class="section-row">
+      <h2><span class="inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="Section title" tabindex="0" data-url="/sections/{{ section.id }}/edit" data-field="title" data-limit="200">{{ section.title }}</span></h2>
+      <div class="item-actions">
+        <button type="button" class="icon-button section-drag-handle" draggable="true" aria-label="Move section" title="Drag to reorder section; Up/Down arrow keys also reorder">⠿</button>
+        <button type="button" class="icon-button add-bullet" aria-label="Add bullet" title="Add bullet" data-section-id="{{ section.id }}">+</button>
+        <button type="button" class="icon-button delete-section" aria-label="Delete section and all its items" title="Delete section and all its items" data-url="/sections/{{ section.id }}/delete">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
+        </button>
+      </div>
+    </div>
+    {{ item_list(section.children, section.id) }}
+  </section>
+{% endmacro %}
 <div id="editor" hx-target="#editor" hx-swap="outerHTML">
   {% for section in sections %}
-  <section>
-    <h2>{{ section.title }}</h2>
-    <details>
-      <summary>Edit section</summary>
-      <form action="/sections/{{ section.id }}/edit" method="post" hx-post="/sections/{{ section.id }}/edit">
-        <label>Section title <input name="title" value="{{ section.title }}" required maxlength="200"></label>
-        <button>Save title</button>
-      </form>
-      <form action="/sections/{{ section.id }}/delete" method="post" hx-post="/sections/{{ section.id }}/delete" hx-confirm="Delete this section and all its items?">
-        <button class="danger">Delete section</button>
-      </form>
-    </details>
-    {{ item_list(section.children, section.id) }}
-    <form action="/sections/{{ section.id }}/items" method="post" hx-post="/sections/{{ section.id }}/items">
-      <label>New bullet <textarea name="content" required maxlength="5000"></textarea></label>
-      <button>Add item</button>
-    </form>
-  </section>
-  {% else %}<p>Your resume is empty. Add your first section below.</p>{% endfor %}
-  <section>
-    <h2>New section</h2>
-    <form action="/sections" method="post" hx-post="/sections">
-      <label>Section title <input name="title" required maxlength="200" placeholder="Experience, Education, Skills…"></label>
-      <button>Add section</button>
-    </form>
-  </section>
+    {{ section_card(section) }}
+  {% else %}<p class="empty-resume">Your resume is empty. Add your first section below.</p>{% endfor %}
+  <footer class="add-section-area">
+    <button type="button" class="icon-button add-section" aria-label="Add section" title="Add section">+</button>
+    <p id="save-status" role="status" aria-live="polite"></p>
+  </footer>
 </div>
