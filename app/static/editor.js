@@ -20,6 +20,18 @@ document.addEventListener('htmx:afterSwap', () => {
 // Keep saves local: replacing the editor would discard the next field's focus.
 const editStates = new WeakMap();
 let pendingSaves = 0;
+let savedStatusTimer;
+function setSaveStatus(message) {
+  clearTimeout(savedStatusTimer);
+  const status = document.getElementById('save-status');
+  status.textContent = message;
+  if (message === 'Saved') {
+    savedStatusTimer = setTimeout(() => {
+      if (status.textContent === 'Saved') status.textContent = '';
+    }, 5000);
+  }
+}
+
 function editState(element) {
   if (!editStates.has(element)) {
     editStates.set(element, { saved: element.innerText.trim(), queue: Promise.resolve() });
@@ -50,7 +62,6 @@ document.addEventListener('focusout', (event) => {
   const state = editState(element);
   const value = element.innerText.trim();
   const error = document.getElementById('error');
-  const status = document.getElementById('save-status');
   if ((element.dataset.newItem || element.dataset.newSection) && !value) {
     element.closest(element.dataset.newSection ? 'section' : 'li').remove();
     return;
@@ -59,12 +70,12 @@ document.addEventListener('focusout', (event) => {
     element.setAttribute('aria-invalid', 'true');
     error.textContent = `${element.getAttribute('aria-label')} must contain 1–${element.dataset.limit} characters. Click the text to correct it.`;
     error.hidden = false;
-    status.textContent = 'Changes need attention';
+    setSaveStatus('Changes need attention');
     return;
   }
   element.removeAttribute('aria-invalid');
   pendingSaves += 1;
-  status.textContent = 'Saving…';
+  setSaveStatus('Saving…');
   state.queue = state.queue.then(async () => {
     if (value === state.saved) return;
     try {
@@ -117,8 +128,8 @@ document.addEventListener('focusout', (event) => {
     }
   }).finally(() => {
     pendingSaves -= 1;
-    status.textContent = pendingSaves ? 'Saving…' :
-      document.querySelector('[data-save-failed], [aria-invalid="true"]') ? 'Changes need attention' : 'Saved';
+    setSaveStatus(pendingSaves ? 'Saving…' :
+      document.querySelector('[data-save-failed], [aria-invalid="true"]') ? 'Changes need attention' : 'Saved');
   });
 });
 
@@ -215,8 +226,7 @@ async function saveMove(item, parent, before) {
   const body = new URLSearchParams({ section_id: section.dataset.sectionId, position });
   if (parent.matches('li')) body.set('parent_id', parent.dataset.itemId);
   movePending = true;
-  const status = document.getElementById('save-status');
-  status.textContent = 'Saving order…';
+  setSaveStatus('Saving order…');
   try {
     const response = await fetch(`/items/${item.dataset.itemId}/move`, { method: 'POST', body });
     if (!response.ok) {
@@ -227,13 +237,13 @@ async function saveMove(item, parent, before) {
     if (!list) { list = document.createElement('ul'); parent.append(list); }
     list.insertBefore(item, before);
     item.querySelectorAll('.add-subitem').forEach(button => button.dataset.sectionId = section.dataset.sectionId);
-    status.textContent = 'Saved';
+    setSaveStatus('Saved');
     item.querySelector('.drag-handle').focus();
   } catch (failure) {
     const error = document.getElementById('error');
     error.textContent = failure.message;
     error.hidden = false;
-    status.textContent = 'Move was not saved';
+    setSaveStatus('Move was not saved');
   } finally { movePending = false; }
 }
 document.addEventListener('dragstart', event => {
@@ -329,21 +339,20 @@ async function saveSectionMove(section, before) {
   const position = before?.matches('section[data-section-id]') ? siblings.indexOf(before) : siblings.length;
   if (position < 0) return;
   movePending = true;
-  const status = document.getElementById('save-status');
-  status.textContent = 'Saving section order…';
+  setSaveStatus('Saving section order…');
   try {
     const response = await fetch(`/sections/${section.dataset.sectionId}/move`, {
       method: 'POST', body: new URLSearchParams({ position }),
     });
     if (!response.ok) throw new Error('Could not reorder this section. Please try again.');
     editor.insertBefore(section, before || editor.querySelector('.add-section-area'));
-    status.textContent = 'Saved';
+    setSaveStatus('Saved');
     section.querySelector('.section-drag-handle').focus();
   } catch (failure) {
     const error = document.getElementById('error');
     error.textContent = failure.message;
     error.hidden = false;
-    status.textContent = 'Section order was not saved';
+    setSaveStatus('Section order was not saved');
   } finally { movePending = false; }
 }
 document.addEventListener('keydown', event => {
