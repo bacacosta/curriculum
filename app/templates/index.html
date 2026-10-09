@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resume editor</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+  <script src="/static/editor.js" defer></script>
+</head>
+<body>
+<main>
+  <h1>Resume editor</h1>
+  <p>Add sections, bullet points, and nested bullet points.</p>
+  <p id="error" role="alert" hidden></p>
+  {% include '_editor.html' %}
+</main>
+</body>
+</html>

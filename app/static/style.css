@@ -1,0 +1,14 @@
+:root { font-family: system-ui, sans-serif; color: #223044; background: #f4f6f8; }
+main { max-width: 850px; margin: 3rem auto; padding: 0 1rem; }
+section { background: white; padding: 1.5rem; margin: 1rem 0; border: 1px solid #dae0e7; border-radius: .6rem; }
+form { margin: .8rem 0; }
+label { display: block; }
+input, textarea { display: block; box-sizing: border-box; width: 100%; padding: .6rem; margin: .4rem 0; font: inherit; }
+textarea { min-height: 4rem; resize: vertical; }
+button { border: 0; background: #245bc4; color: white; padding: .6rem .9rem; border-radius: .3rem; cursor: pointer; }
+button.danger { background: #a72b37; }
+summary { cursor: pointer; color: #245bc4; }
+li { margin: .8rem 0; }
+.content { white-space: pre-wrap; overflow-wrap: anywhere; }
+#error { background: #ffe6e6; padding: 1rem; }
+.htmx-request button { opacity: .6; }

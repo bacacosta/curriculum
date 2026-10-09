@@ -1,0 +1,54 @@
+{% macro item_list(items, section_id) %}
+<ul>
+{% for item in items %}
+  <li>
+    <p class="content">{{ item.content }}</p>
+    <details>
+      <summary>Edit / add subitem</summary>
+      <form action="/items/{{ item.id }}/edit" method="post" hx-post="/items/{{ item.id }}/edit">
+        <label>Bullet text <textarea name="content" required maxlength="5000">{{ item.content }}</textarea></label>
+        <button>Save item</button>
+      </form>
+      <form action="/sections/{{ section_id }}/items" method="post" hx-post="/sections/{{ section_id }}/items">
+        <input type="hidden" name="parent_id" value="{{ item.id }}">
+        <label>Subitem <textarea name="content" required maxlength="5000"></textarea></label>
+        <button>Add subitem</button>
+      </form>
+      <form action="/items/{{ item.id }}/delete" method="post" hx-post="/items/{{ item.id }}/delete" hx-confirm="Delete this item and all its subitems?">
+        <button class="danger">Delete item and subitems</button>
+      </form>
+    </details>
+    {% if item.children %}{{ item_list(item.children, section_id) }}{% endif %}
+  </li>
+{% endfor %}
+</ul>
+{% endmacro %}
+<div id="editor" hx-target="#editor" hx-swap="outerHTML">
+  {% for section in sections %}
+  <section>
+    <h2>{{ section.title }}</h2>
+    <details>
+      <summary>Edit section</summary>
+      <form action="/sections/{{ section.id }}/edit" method="post" hx-post="/sections/{{ section.id }}/edit">
+        <label>Section title <input name="title" value="{{ section.title }}" required maxlength="200"></label>
+        <button>Save title</button>
+      </form>
+      <form action="/sections/{{ section.id }}/delete" method="post" hx-post="/sections/{{ section.id }}/delete" hx-confirm="Delete this section and all its items?">
+        <button class="danger">Delete section</button>
+      </form>
+    </details>
+    {{ item_list(section.children, section.id) }}
+    <form action="/sections/{{ section.id }}/items" method="post" hx-post="/sections/{{ section.id }}/items">
+      <label>New bullet <textarea name="content" required maxlength="5000"></textarea></label>
+      <button>Add item</button>
+    </form>
+  </section>
+  {% else %}<p>Your resume is empty. Add your first section below.</p>{% endfor %}
+  <section>
+    <h2>New section</h2>
+    <form action="/sections" method="post" hx-post="/sections">
+      <label>Section title <input name="title" required maxlength="200" placeholder="Experience, Education, Skills…"></label>
+      <button>Add section</button>
+    </form>
+  </section>
+</div>
