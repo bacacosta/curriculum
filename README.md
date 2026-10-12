@@ -1,18 +1,18 @@
 # Resume editor
 
-A single-resume starter using Python 3.10+, FastAPI, SQLite, server-rendered Jinja HTML, and HTMX. Add, edit, and delete sections, bullets, and nested subitems.
+A single-resume editor using Python 3.10+, FastAPI, SQLite, Jinja templates, and vanilla JavaScript. Edit contact details, sections, bullets, and nested subbullets, then download a styled A4 PDF.
 
 ## Run
-
-Start the app without activating the virtual environment:
 
 ```bash
 ./start.sh
 ```
 
-The script creates `.venv` and installs runtime dependencies if needed, then starts the development server on `0.0.0.0:8000` with automatic reload. Stop it with Ctrl+C. Pass server options as needed, for example `./start.sh --port 8080`.
+The script creates `.venv`, installs missing runtime dependencies, and starts the development server on `0.0.0.0:8000` with automatic reload. Open http://127.0.0.1:8000. Stop with Ctrl+C; pass server options such as `./start.sh --port 8080`.
 
-For manual setup (including test dependencies):
+PDF export requires a recent Google Chrome installation on the server, discoverable through Playwright's `chrome` channel. Installing the Python dependencies does not install Chrome. Chrome 131 or newer supports the CSS page-number footer. Export uses the server's installed fonts, with Adwaita Sans, Helvetica Neue, Segoe UI, and sans-serif fallbacks; different machines may render different fallback fonts.
+
+For manual setup, including tests:
 
 ```bash
 python -m venv .venv
@@ -21,44 +21,63 @@ pip install -r requirements-dev.txt
 uvicorn app.main:app --host 0.0.0.0 --reload
 ```
 
-Open http://127.0.0.1:8000. SQLite is initialized automatically at `data/resume.sqlite3`; startup preserves saved data. Set `RESUME_DB` to override the database file. Click a section title or bullet to edit it directly; leaving the text saves automatically. Enter saves and leaves any editing field, Shift+Enter inserts a line break, and Escape cancels unsaved typing. Every bullet and subitem has a trash button and a plus button. Plus opens a new subitem field that saves on blur; leaving it empty or pressing Escape cancels it. The single plus button at the bottom opens a blank section title; Enter or leaving the field saves it, and an empty title or Escape cancels it. Section titles also have plus and trash buttons for adding top-level bullets and deleting the entire section. Every trash button asks for confirmation before deleting. Inline editing requires JavaScript. HTMX is loaded from a versioned CDN URL and requires internet access; add/delete forms also work through ordinary POST/redirect requests.
+SQLite initializes at `data/resume.sqlite3` and preserves saved data. Set `RESUME_DB` to override its location.
 
-```bash
-pytest
-```
+## Editing and export
 
-## Proposed schema
+The header contains `name`, `address`, `email`, and `phone`. The name sits on the left, followed by the address and a column containing email above phone. Header fields can be cleared.
+
+Click any header field, section title, or bullet to edit. Leaving the field or pressing Enter saves; Shift+Enter inserts a line break and Escape cancels unsaved typing. Section titles appear on the left with their controls underneath, and bullets on the right, inside light gray section backgrounds.
+
+The centered plus button adds a section. A section's plus adds a top-level bullet; a bullet's plus adds a nested subbullet. Empty new fields or Escape cancel creation. Trash buttons ask for confirmation and delete the selected section or bullet together with its descendants.
+
+Drag a bullet's ⠿ handle to reorder or move its subtree. Drop at the top/bottom of a row to insert before/after, in the middle to nest, or on a section heading to append at its top level. With the handle focused, Up/Down reorder, Right nests under the previous sibling, and Left moves out one level. Section handles support dragging and Up/Down reordering. Moves save automatically.
+
+The PDF icon on the bottom right downloads `resume.pdf` directly. It waits for pending text saves, moves, and deletions, and temporarily locks editing during export. Invalid or failed text saves block export. The PDF preserves the document layout and gray section backgrounds, hides editing controls and rulers, and includes only page numbers in its footer. The globe beside PDF is a placeholder for future web export and has no action.
+
+The editor requires JavaScript; it has no external script or CDN dependency. All requests use the browser's Fetch API.
+
+## Schema
 
 The implemented DDL is in `app/schema.sql`.
 
 | Table | Columns | Purpose |
 | --- | --- | --- |
+| `header` | `id`, `name`, `address`, `email`, `phone` | One contact header (`id = 1`) |
 | `sections` | `id`, `title`, `position` | Ordered resume sections |
-| `items` | `id`, `section_id`, `parent_id`, `content`, `position` | Ordered bullets and subitems |
+| `bullets` | `id`, `section_id`, `parent_id`, `content`, `position` | Ordered bullets and nested subbullets |
 
-An item with `parent_id = NULL` is a top-level bullet. Other items reference their parent, allowing further nesting without extra tables. The composite foreign key `(parent_id, section_id)` ensures parent and child belong to the same section. Foreign keys are enabled on every connection; section and parent deletion cascade to descendants.
+A bullet with `parent_id = NULL` is top-level. Other bullets reference a parent. The composite foreign key `(parent_id, section_id)` keeps parent and child in the same section. Every connection enables foreign keys; section and parent deletion cascade to descendants.
 
-Positions describe insertion order within sections or sibling lists. Reads sort by `position, id`, with `id` breaking ties. Deletion leaves harmless position gaps. New entries append to their sibling list. Drag the ⠿ handle to reorder or move a bullet with all its descendants. Drop on the top/bottom of a row to insert before/after it, the middle to nest under it, or a section heading to append at that section’s top level. With the handle focused, Up/Down reorder, Right nests under the previous sibling, and Left moves out one level. Moves save automatically. Sections also have a ⠿ handle: drag above or below another section to reorder, or focus the handle and press Up/Down. The section and all its bullets move together. The move endpoint rejects self-parenting and descendant cycles, updates the entire subtree when moving between sections, and normalizes sibling positions in one transaction.
+Reads sort by `position, id`. Deletion may leave harmless gaps; new entries append. Moves normalize sibling positions in one transaction, reject self-parenting and descendant cycles, and update the entire subtree when moving between sections.
 
-This is preferable to storing a whole section as JSON because individual bullets can be updated and deleted while SQLite enforces relationships. It assumes one resume. For multiple resumes, introduce `resumes` and a `resume_id` foreign key on `sections`.
+This app stores one resume. Multiple resumes would require a `resumes` table and resume ownership for both headers and sections. Existing databases using older table names require an explicit migration; startup only initializes the current schema.
 
 ## Routes
 
 | Method | Path | Behavior |
 | --- | --- | --- |
 | GET | `/` | HTML editor |
-| GET | `/api/resume` | Complete JSON tree with `children` arrays |
+| GET | `/api/resume` | Header and section tree with `children` arrays |
+| GET | `/export.pdf` | Styled A4 PDF attachment |
+| POST | `/header/{field}/edit` | Save `name`, `address`, `email`, or `phone`; accepts empty text |
 | POST | `/sections` | Create section (`title`) |
-| POST | `/sections/{id}/edit` | Update title (`title`) |
-| POST | `/sections/{id}/delete` | Delete section and its items |
-| POST | `/sections/{id}/move` | Reorder section (`position`, zero-based destination index excluding the moved section) |
-| POST | `/sections/{id}/items` | Create bullet (`content`, optional `parent_id`) |
-| POST | `/items/{id}/edit` | Update bullet (`content`) |
-| POST | `/items/{id}/delete` | Delete bullet and its descendants |
-| POST | `/items/{id}/move` | Move subtree (`section_id`, optional `parent_id`, zero-based `position` among destination siblings excluding the moved item) |
+| POST | `/sections/{section_id}/edit` | Save section title (`title`) |
+| POST | `/sections/{section_id}/delete` | Delete section and its bullets |
+| POST | `/sections/{section_id}/move` | Reorder (`position`, destination index excluding moved section) |
+| POST | `/sections/{section_id}/bullets` | Create bullet (`content`, optional `parent_id`) |
+| POST | `/bullets/{bullet_id}/edit` | Save bullet (`content`) |
+| POST | `/bullets/{bullet_id}/delete` | Delete bullet and descendants |
+| POST | `/bullets/{bullet_id}/move` | Move subtree (`section_id`, optional `parent_id`, destination `position` excluding moved bullet) |
 
-Mutation routes accept form data. The move routes return JSON confirmation; creation with `X-Inline-Create: true` returns a single item fragment. Other mutations return the editor fragment for `HX-Request: true`, and otherwise redirect to `/`. Interactive API documentation is at `/docs`. SQL statements use bound parameters, and templates escape user text. Validation errors are shown by the HTMX editor.
+Mutation routes accept form data. Edits, deletes, and moves return JSON confirmation. Creation with `X-Inline-Create: true` returns a section or bullet HTML fragment; otherwise `X-Editor-Request: true` returns the editor fragment, and other creation requests redirect to `/`. Positions are zero-based. Interactive API documentation is at `/docs`. Templates escape user text and SQL values use bound parameters.
 
-The scaffold is intended for local use. Authentication, CSRF protection, schema migrations, and multi-user access are future work before public deployment. Inline edits, subitem creation, and item deletion update only the affected row. Section deletion removes only that section. Adding a section inserts its card without replacing the editor.
+## Tests
 
-Implementation references: [FastAPI templates](https://fastapi.tiangolo.com/advanced/templates/), [HTMX targets](https://htmx.org/attributes/hx-target/), [HTMX swaps](https://htmx.org/attributes/hx-swap/).
+```bash
+python -m pytest -q
+```
+
+Tests cover persistence, validation, escaping, nested bullets, reordering, invalid moves, PDF download metadata, PDF text and pagination, and browser export synchronization. PDF and browser tests require Chrome and permission to launch browser processes. Tests use temporary databases and do not modify the saved resume.
+
+The app is intended for local use. Authentication, CSRF protection, migrations, and multi-user access remain future work before public deployment.

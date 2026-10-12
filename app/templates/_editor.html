@@ -1,18 +1,18 @@
-{% macro item_list(items, section_id) %}
+{% macro bullet_list(bullets, section_id) %}
 <ul>
-{% for item in items %}
-  <li data-item-id="{{ item.id }}">
-    <div class="item-row">
-      <p class="content inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="Bullet text" aria-multiline="true" tabindex="0" data-url="/items/{{ item.id }}/edit" data-field="content" data-limit="5000">{{ item.content }}</p>
-      <div class="item-actions">
+{% for bullet in bullets %}
+  <li data-bullet-id="{{ bullet.id }}">
+    <div class="bullet-row">
+      <p class="content inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="Bullet text" aria-multiline="true" tabindex="0" data-url="/bullets/{{ bullet.id }}/edit" data-field="content" data-limit="5000">{{ bullet.content }}</p>
+      <div class="bullet-actions">
         <button type="button" class="icon-button drag-handle" draggable="true" aria-label="Move bullet" title="Drag to move; arrow keys reorder, Right nests, Left unnests">⠿</button>
-        <button type="button" class="icon-button add-subitem" aria-label="Add subitem" title="Add subitem" data-section-id="{{ section_id }}" data-parent-id="{{ item.id }}">+</button>
-        <button type="button" class="icon-button delete-item" aria-label="Delete item and subitems" title="Delete item and subitems" data-url="/items/{{ item.id }}/delete">
+        <button type="button" class="icon-button add-subbullet" aria-label="Add subbullet" title="Add subbullet" data-section-id="{{ section_id }}" data-parent-id="{{ bullet.id }}">+</button>
+        <button type="button" class="icon-button delete-bullet" aria-label="Delete bullet and subbullets" title="Delete bullet and subbullets" data-url="/bullets/{{ bullet.id }}/delete">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
         </button>
       </div>
     </div>
-    {% if item.children %}{{ item_list(item.children, section_id) }}{% endif %}
+    {% if bullet.children %}{{ bullet_list(bullet.children, section_id) }}{% endif %}
   </li>
 {% endfor %}
 </ul>
@@ -21,23 +21,43 @@
   <section data-section-id="{{ section.id }}">
     <div class="section-row">
       <h2><span class="inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="Section title" tabindex="0" data-url="/sections/{{ section.id }}/edit" data-field="title" data-limit="200">{{ section.title }}</span></h2>
-      <div class="item-actions">
+      <div class="bullet-actions">
         <button type="button" class="icon-button section-drag-handle" draggable="true" aria-label="Move section" title="Drag to reorder section; Up/Down arrow keys also reorder">⠿</button>
         <button type="button" class="icon-button add-bullet" aria-label="Add bullet" title="Add bullet" data-section-id="{{ section.id }}">+</button>
-        <button type="button" class="icon-button delete-section" aria-label="Delete section and all its items" title="Delete section and all its items" data-url="/sections/{{ section.id }}/delete">
+        <button type="button" class="icon-button delete-section" aria-label="Delete section and all its bullets" title="Delete section and all its bullets" data-url="/sections/{{ section.id }}/delete">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
         </button>
       </div>
     </div>
-    {{ item_list(section.children, section.id) }}
+    {{ bullet_list(section.children, section.id) }}
   </section>
 {% endmacro %}
-<div id="editor" hx-target="#editor" hx-swap="outerHTML">
+<div id="editor">
+  {% if header is defined %}
+  <header class="resume-header" aria-label="Contact details">
+    {% for field in ['name', 'address', 'email', 'phone'] %}
+    {% if field == 'address' %}<div class="header-details">{% endif %}
+    {% if field == 'email' %}<div class="header-contact">{% endif %}
+    <p class="inline-edit header-field header-{{ field }}" contenteditable="plaintext-only" role="textbox" aria-label="{{ field | capitalize }}" aria-multiline="{{ 'true' if field == 'address' else 'false' }}" tabindex="0" data-url="/header/{{ field }}/edit" data-field="{{ field }}" data-limit="5000" data-allow-empty="true" data-placeholder="{{ field | capitalize }}">{{ header[field] }}</p>
+    {% if field == 'phone' %}</div></div>{% endif %}
+    {% endfor %}
+  </header>
+  {% endif %}
   {% for section in sections %}
     {{ section_card(section) }}
   {% else %}<p class="empty-resume">Your resume is empty. Add your first section below.</p>{% endfor %}
   <footer class="add-section-area">
+    <div class="document-actions">
     <button type="button" class="icon-button add-section" aria-label="Add section" title="Add section">+</button>
+    <div class="export-actions">
+    <button type="button" class="icon-button export-pdf" aria-label="Export PDF" title="Export PDF">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><text x="12" y="17" text-anchor="middle" fill="currentColor" stroke="none" font-family="sans-serif" font-size="7" font-weight="700">PDF</text></svg>
+    </button>
+    <button type="button" class="icon-button export-web" aria-label="Export to web (coming soon)" aria-disabled="true" title="Export to web — coming soon">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg>
+    </button>
+    </div>
+    </div>
     <p id="save-status" role="status" aria-live="polite"></p>
   </footer>
 </div>

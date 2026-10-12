@@ -5,15 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Resume editor</title>
   <link rel="stylesheet" href="/static/style.css">
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
   <script src="/static/editor.js" defer></script>
+  <script src="/static/rulers.js" defer></script>
 </head>
 <body>
-<main>
-  <h1>Resume editor</h1>
-  <p>Click any title or bullet to edit. Changes save when you leave the text. Drag the ⠿ handle to reorder; drop in the middle of a bullet to nest it, or on a section heading to move it to the top level.</p>
-  <p id="error" role="alert" hidden></p>
-  {% include '_editor.html' %}
+<main class="document-workspace" aria-label="Resume document">
+  <div class="ruler-corner" aria-hidden="true"><svg viewBox="0 0 26 26" width="26" height="26" fill="none"><path d="M9 8v10h9" stroke="currentColor" stroke-width="3"/></svg></div>
+  <div class="ruler horizontal-ruler" aria-hidden="true"></div>
+  <div class="ruler vertical-ruler" aria-hidden="true"></div>
+  <div class="document-page">
+    <p id="error" role="alert" hidden></p>
+    {% include '_editor.html' %}
+  </div>
 </main>
 </body>
 </html>

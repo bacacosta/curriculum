@@ -1,33 +1,66 @@
-document.addEventListener('htmx:responseError', (event) => {
+const pendingMutations = new Set();
+function mutationRequest(...args) {
+  const request = fetch(...args);
+  pendingMutations.add(request);
+  request.then(() => pendingMutations.delete(request), () => pendingMutations.delete(request));
+  return request;
+}
+
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('.export-pdf');
+  if (!button || button.disabled) return;
+  button.disabled = true;
+  const editor = document.getElementById('editor');
+  editor.inert = true;
   const error = document.getElementById('error');
-  let message = 'Could not save your change. Please try again.';
   try {
-    const detail = JSON.parse(event.detail.xhr.responseText).detail;
-    if (typeof detail === 'string') message = detail;
-  } catch (_) {}
-  error.textContent = message;
-  error.hidden = false;
-});
-document.addEventListener('htmx:sendError', () => {
-  const error = document.getElementById('error');
-  error.textContent = 'Unable to reach the server. Please try again.';
-  error.hidden = false;
-});
-document.addEventListener('htmx:afterSwap', () => {
-  document.getElementById('error').hidden = true;
+    await Promise.all([...document.querySelectorAll('.inline-edit')].map(element => editStates.get(element)?.queue));
+    await Promise.all([...pendingMutations]);
+    if (document.querySelector('[data-save-failed], [aria-invalid="true"]')) throw new Error('Please fix unsaved changes before exporting.');
+    const response = await fetch('/export.pdf');
+    if (!response.ok) throw new Error('Could not export the PDF. Please try again.');
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'resume.pdf';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (failure) {
+    error.textContent = failure.message;
+    error.hidden = false;
+  } finally { editor.inert = false; button.disabled = false; }
 });
 
 // Keep saves local: replacing the editor would discard the next field's focus.
 const editStates = new WeakMap();
 let pendingSaves = 0;
 let savedStatusTimer;
+let savingStatusTimer;
+let savingStartedAt = null;
 function setSaveStatus(message) {
   clearTimeout(savedStatusTimer);
+  clearTimeout(savingStatusTimer);
   const status = document.getElementById('save-status');
+  if (message.startsWith('Saving')) {
+    if (savingStartedAt === null) savingStartedAt = performance.now();
+  } else if (message === 'Saved' && savingStartedAt !== null) {
+    const remaining = 2000 - (performance.now() - savingStartedAt);
+    if (remaining > 0) {
+      savingStatusTimer = setTimeout(() => setSaveStatus('Saved'), remaining);
+      return;
+    }
+    savingStartedAt = null;
+  } else {
+    savingStartedAt = null;
+  }
   status.textContent = message;
+  status.classList.toggle('has-save-icon', message === 'Saved' || message.startsWith('Saving'));
   if (message === 'Saved') {
     savedStatusTimer = setTimeout(() => {
-      if (status.textContent === 'Saved') status.textContent = '';
+      if (status.textContent === 'Saved') {
+        status.textContent = '';
+        status.classList.remove('has-save-icon');
+      }
     }, 5000);
   }
 }
@@ -45,7 +78,7 @@ document.addEventListener('keydown', (event) => {
   const element = event.target;
   if (!element.matches('.inline-edit') || event.isComposing) return;
   if (event.key === 'Escape') {
-    if (element.dataset.newItem || element.dataset.newSection) {
+    if (element.dataset.newBullet || element.dataset.newSection) {
       element.closest(element.dataset.newSection ? 'section' : 'li').remove();
       return;
     }
@@ -62,13 +95,13 @@ document.addEventListener('focusout', (event) => {
   const state = editState(element);
   const value = element.innerText.trim();
   const error = document.getElementById('error');
-  if ((element.dataset.newItem || element.dataset.newSection) && !value) {
+  if ((element.dataset.newBullet || element.dataset.newSection) && !value) {
     element.closest(element.dataset.newSection ? 'section' : 'li').remove();
     return;
   }
-  if (!value || value.length > Number(element.dataset.limit)) {
+  if ((!value && !element.dataset.allowEmpty) || value.length > Number(element.dataset.limit)) {
     element.setAttribute('aria-invalid', 'true');
-    error.textContent = `${element.getAttribute('aria-label')} must contain 1–${element.dataset.limit} characters. Click the text to correct it.`;
+    error.textContent = `${element.getAttribute('aria-label')} must contain ${element.dataset.allowEmpty ? '0' : '1'}–${element.dataset.limit} characters. Click the text to correct it.`;
     error.hidden = false;
     setSaveStatus('Changes need attention');
     return;
@@ -79,11 +112,11 @@ document.addEventListener('focusout', (event) => {
   state.queue = state.queue.then(async () => {
     if (value === state.saved) return;
     try {
-      const response = await fetch(element.dataset.url, {
+      const response = await mutationRequest(element.dataset.url, {
         method: 'POST',
-        headers: { 'HX-Request': 'true', 'X-Inline-Create': element.dataset.newItem || element.dataset.newSection ? 'true' : 'false' },
+        headers: { 'X-Editor-Request': 'true', 'X-Inline-Create': element.dataset.newBullet || element.dataset.newSection ? 'true' : 'false' },
         body: new URLSearchParams({ [element.dataset.field]: value,
-          ...(element.dataset.newItem && element.dataset.parentId ? { parent_id: element.dataset.parentId } : {}) }),
+          ...(element.dataset.newBullet && element.dataset.parentId ? { parent_id: element.dataset.parentId } : {}) }),
       });
       if (!response.ok) {
         let message = 'Could not save your change.';
@@ -99,19 +132,19 @@ document.addEventListener('focusout', (event) => {
         const section = element.closest('section');
         section.dataset.sectionId = savedSection.dataset.sectionId;
         element.dataset.url = savedSection.querySelector('.inline-edit').dataset.url;
-        section.querySelector('.section-row').append(savedSection.querySelector('.item-actions'));
+        section.querySelector('.section-row').append(savedSection.querySelector('.bullet-actions'));
         section.append(savedSection.querySelector('ul'));
         delete element.dataset.newSection;
         element.removeAttribute('data-placeholder');
         document.querySelector('.empty-resume')?.remove();
-      } else if (element.dataset.newItem) {
+      } else if (element.dataset.newBullet) {
         const fragment = new DOMParser().parseFromString(await response.text(), 'text/html');
-        const savedItem = fragment.querySelector('li');
+        const savedBullet = fragment.querySelector('li');
         const row = element.closest('li');
-        row.dataset.itemId = savedItem.dataset.itemId;
-        element.dataset.url = savedItem.querySelector('.inline-edit').dataset.url;
-        row.querySelector('.item-row').append(savedItem.querySelector('.item-actions'));
-        delete element.dataset.newItem;
+        row.dataset.bulletId = savedBullet.dataset.bulletId;
+        element.dataset.url = savedBullet.querySelector('.inline-edit').dataset.url;
+        row.querySelector('.bullet-row').append(savedBullet.querySelector('.bullet-actions'));
+        delete element.dataset.newBullet;
         delete element.dataset.parentId;
         element.removeAttribute('data-placeholder');
         element.setAttribute('aria-label', 'Bullet text');
@@ -145,22 +178,22 @@ document.addEventListener('click', async (event) => {
     section.querySelector('.inline-edit').focus();
     return;
   }
-  const add = event.target.closest('.add-subitem, .add-bullet');
+  const add = event.target.closest('.add-subbullet, .add-bullet');
   if (add) {
-    const isSubitem = add.matches('.add-subitem');
-    const parent = add.closest(isSubitem ? 'li' : 'section');
+    const isSubbullet = add.matches('.add-subbullet');
+    const parent = add.closest(isSubbullet ? 'li' : 'section');
     let list = parent.querySelector(':scope > ul');
     if (!list) {
       list = document.createElement('ul');
       parent.append(list);
     }
-    const existing = list.querySelector(':scope > li > .item-row > [data-new-item]');
+    const existing = list.querySelector(':scope > li > .bullet-row > [data-new-bullet]');
     if (existing) { existing.focus(); return; }
     const row = document.createElement('li');
-    row.innerHTML = '<div class="item-row"><p class="content inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="New subitem" aria-multiline="true" tabindex="0" data-field="content" data-limit="5000" data-new-item="true" data-placeholder="Write a subitem…"></p></div>';
+    row.innerHTML = '<div class="bullet-row"><p class="content inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="New subbullet" aria-multiline="true" tabindex="0" data-field="content" data-limit="5000" data-new-bullet="true" data-placeholder="Write a subbullet…"></p></div>';
     const field = row.querySelector('.inline-edit');
-    field.dataset.url = `/sections/${add.dataset.sectionId}/items`;
-    if (isSubitem) field.dataset.parentId = add.dataset.parentId;
+    field.dataset.url = `/sections/${add.dataset.sectionId}/bullets`;
+    if (isSubbullet) field.dataset.parentId = add.dataset.parentId;
     else {
       field.setAttribute('aria-label', 'New bullet');
       field.dataset.placeholder = 'Write a bullet…';
@@ -168,16 +201,16 @@ document.addEventListener('click', async (event) => {
     list.append(row);
     field.focus();
   }
-  const remove = event.target.closest('.delete-item, .delete-section');
+  const remove = event.target.closest('.delete-bullet, .delete-section');
   if (remove) {
     const isSection = remove.matches('.delete-section');
     const row = remove.closest(isSection ? 'section' : 'li');
-    const message = isSection ? 'Delete this section and all its items?' : 'Delete this item and all its subitems?';
+    const message = isSection ? 'Delete this section and all its bullets?' : 'Delete this bullet and all its subbullets?';
     if (!window.confirm(message)) return;
     remove.disabled = true;
     try {
-      const response = await fetch(remove.dataset.url, { method: 'POST', headers: { 'HX-Request': 'true' } });
-      if (!response.ok) throw new Error(`Could not delete this ${isSection ? 'section' : 'item'}. Please try again.`);
+      const response = await mutationRequest(remove.dataset.url, { method: 'POST', headers: { 'X-Editor-Request': 'true' } });
+      if (!response.ok) throw new Error(`Could not delete this ${isSection ? 'section' : 'bullet'}. Please try again.`);
       row.remove();
     } catch (failure) {
       const error = document.getElementById('error');
@@ -188,7 +221,7 @@ document.addEventListener('click', async (event) => {
   }
 });
 
-let draggedItem = null;
+let draggedBullet = null;
 let draggedSection = null;
 let movePending = false;
 function clearDropHints() {
@@ -196,49 +229,49 @@ function clearDropHints() {
     node.classList.remove('drop-before', 'drop-after', 'drop-inside'));
 }
 function dropDestination(event) {
-  const itemRow = event.target.closest('.item-row');
-  if (itemRow) {
-    const item = itemRow.closest('li');
-    if (!item.dataset.itemId || item === draggedItem || draggedItem.contains(item)) return null;
-    const rect = itemRow.getBoundingClientRect();
+  const bulletRow = event.target.closest('.bullet-row');
+  if (bulletRow) {
+    const bullet = bulletRow.closest('li');
+    if (!bullet.dataset.bulletId || bullet === draggedBullet || draggedBullet.contains(bullet)) return null;
+    const rect = bulletRow.getBoundingClientRect();
     const fraction = (event.clientY - rect.top) / rect.height;
-    if (fraction < .25) return { parent: item.parentElement.parentElement, before: item, hint: itemRow, style: 'drop-before' };
-    if (fraction > .75) return { parent: item.parentElement.parentElement, before: item.nextElementSibling, hint: itemRow, style: 'drop-after' };
-    return { parent: item, before: null, hint: itemRow, style: 'drop-inside' };
+    if (fraction < .25) return { parent: bullet.parentElement.parentElement, before: bullet, hint: bulletRow, style: 'drop-before' };
+    if (fraction > .75) return { parent: bullet.parentElement.parentElement, before: bullet.nextElementSibling, hint: bulletRow, style: 'drop-after' };
+    return { parent: bullet, before: null, hint: bulletRow, style: 'drop-inside' };
   }
   const section = event.target.closest('section[data-section-id]');
   if (section && !event.target.closest('li')) return { parent: section, before: null, hint: section.querySelector('.section-row'), style: 'drop-inside' };
   return null;
 }
-async function saveMove(item, parent, before) {
-  if (movePending || pendingSaves || item === parent || item.contains(parent)) return;
-  if (document.querySelector('[data-new-item]')) {
+async function saveMove(bullet, parent, before) {
+  if (movePending || pendingSaves || bullet === parent || bullet.contains(parent)) return;
+  if (document.querySelector('[data-new-bullet]')) {
     const error = document.getElementById('error');
-    error.textContent = 'Finish or cancel the new bullet before moving items.';
+    error.textContent = 'Finish or cancel the new bullet before moving bullets.';
     error.hidden = false;
     return;
   }
   let list = parent.querySelector(':scope > ul');
-  const siblings = list ? [...list.children].filter(node => node !== item) : [];
+  const siblings = list ? [...list.children].filter(node => node !== bullet) : [];
   const position = before ? siblings.indexOf(before) : siblings.length;
   if (position < 0) return;
   const section = parent.closest('section[data-section-id]');
   const body = new URLSearchParams({ section_id: section.dataset.sectionId, position });
-  if (parent.matches('li')) body.set('parent_id', parent.dataset.itemId);
+  if (parent.matches('li')) body.set('parent_id', parent.dataset.bulletId);
   movePending = true;
-  setSaveStatus('Saving order…');
+  setSaveStatus('Saving bullet order…');
   try {
-    const response = await fetch(`/items/${item.dataset.itemId}/move`, { method: 'POST', body });
+    const response = await mutationRequest(`/bullets/${bullet.dataset.bulletId}/move`, { method: 'POST', body });
     if (!response.ok) {
       let message = 'Could not move this bullet. Please try again.';
       try { const data = await response.json(); if (typeof data.detail === 'string') message = data.detail; } catch (_) {}
       throw new Error(message);
     }
     if (!list) { list = document.createElement('ul'); parent.append(list); }
-    list.insertBefore(item, before);
-    item.querySelectorAll('.add-subitem').forEach(button => button.dataset.sectionId = section.dataset.sectionId);
+    list.insertBefore(bullet, before);
+    bullet.querySelectorAll('.add-subbullet').forEach(button => button.dataset.sectionId = section.dataset.sectionId);
     setSaveStatus('Saved');
-    item.querySelector('.drag-handle').focus();
+    bullet.querySelector('.drag-handle').focus();
   } catch (failure) {
     const error = document.getElementById('error');
     error.textContent = failure.message;
@@ -259,10 +292,10 @@ document.addEventListener('dragstart', event => {
   const handle = event.target.closest('.drag-handle');
   if (!handle) return;
   if (movePending || pendingSaves) { event.preventDefault(); return; }
-  draggedItem = handle.closest('li');
+  draggedBullet = handle.closest('li');
   event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('text/plain', draggedItem.dataset.itemId);
-  draggedItem.classList.add('dragging');
+  event.dataTransfer.setData('text/plain', draggedBullet.dataset.bulletId);
+  draggedBullet.classList.add('dragging');
 });
 document.addEventListener('dragover', event => {
   if (draggedSection) {
@@ -275,7 +308,7 @@ document.addEventListener('dragover', event => {
     }
     return;
   }
-  if (!draggedItem) return;
+  if (!draggedBullet) return;
   clearDropHints();
   const destination = dropDestination(event);
   if (!destination) return;
@@ -291,29 +324,29 @@ document.addEventListener('drop', event => {
     if (destination) saveSectionMove(draggedSection, destination.before);
     return;
   }
-  if (!draggedItem) return;
+  if (!draggedBullet) return;
   event.preventDefault();
   const destination = dropDestination(event);
   clearDropHints();
-  if (destination) saveMove(draggedItem, destination.parent, destination.before);
+  if (destination) saveMove(draggedBullet, destination.parent, destination.before);
 });
 document.addEventListener('dragend', () => {
   if (draggedSection) draggedSection.classList.remove('dragging');
   draggedSection = null;
-  if (draggedItem) draggedItem.classList.remove('dragging');
-  draggedItem = null;
+  if (draggedBullet) draggedBullet.classList.remove('dragging');
+  draggedBullet = null;
   clearDropHints();
 });
 document.addEventListener('keydown', event => {
   const handle = event.target.closest('.drag-handle');
   if (!handle || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
   event.preventDefault();
-  const item = handle.closest('li');
-  const parent = item.parentElement.parentElement;
-  if (event.key === 'ArrowUp' && item.previousElementSibling) saveMove(item, parent, item.previousElementSibling);
-  if (event.key === 'ArrowDown' && item.nextElementSibling) saveMove(item, parent, item.nextElementSibling.nextElementSibling);
-  if (event.key === 'ArrowRight' && item.previousElementSibling) saveMove(item, item.previousElementSibling, null);
-  if (event.key === 'ArrowLeft' && parent.matches('li')) saveMove(item, parent.parentElement.parentElement, parent.nextElementSibling);
+  const bullet = handle.closest('li');
+  const parent = bullet.parentElement.parentElement;
+  if (event.key === 'ArrowUp' && bullet.previousElementSibling) saveMove(bullet, parent, bullet.previousElementSibling);
+  if (event.key === 'ArrowDown' && bullet.nextElementSibling) saveMove(bullet, parent, bullet.nextElementSibling.nextElementSibling);
+  if (event.key === 'ArrowRight' && bullet.previousElementSibling) saveMove(bullet, bullet.previousElementSibling, null);
+  if (event.key === 'ArrowLeft' && parent.matches('li')) saveMove(bullet, parent.parentElement.parentElement, parent.nextElementSibling);
 });
 
 function sectionDropDestination(event) {
@@ -341,7 +374,7 @@ async function saveSectionMove(section, before) {
   movePending = true;
   setSaveStatus('Saving section order…');
   try {
-    const response = await fetch(`/sections/${section.dataset.sectionId}/move`, {
+    const response = await mutationRequest(`/sections/${section.dataset.sectionId}/move`, {
       method: 'POST', body: new URLSearchParams({ position }),
     });
     if (!response.ok) throw new Error('Could not reorder this section. Please try again.');
