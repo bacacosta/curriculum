@@ -5,6 +5,65 @@ from pypdf import PdfReader
 import pytest
 
 
+@pytest.mark.parametrize("entry_type", ["section", "bullet"])
+@pytest.mark.parametrize("cancel_action", ["escape", "clear"])
+def test_in_flight_creation_stays_visible(
+    client, browser_page, entry_type, cancel_action
+):
+    page = browser_page
+    if entry_type == "section":
+        endpoint = "/sections"
+        field_name = "title"
+        button_name = "Add section"
+    else:
+        client.post("/sections", data={"title": "Experience"})
+        section_id = client.get("/api/resume").json()["sections"][0]["id"]
+        page.reload()
+        endpoint = f"/sections/{section_id}/bullets"
+        field_name = "content"
+        button_name = "Add bullet"
+
+    held_requests = []
+    page.route(
+        f"http://testserver{endpoint}", lambda route: held_requests.append(route)
+    )
+    page.get_by_role("button", name=button_name, exact=True).click()
+    draft = page.locator(f"[data-new-{entry_type}]")
+    draft.fill("Slow save entry")
+    draft.press("Enter")
+    page.wait_for_function("pendingMutations.size === 1")
+    draft.focus()
+    if cancel_action == "escape":
+        draft.press("Escape")
+    else:
+        draft.fill("")
+        draft.press("Tab")
+    expect(draft).to_be_visible()
+    expect(draft).to_have_text("Slow save entry")
+    expect(page.locator("#error")).to_have_text(
+        "This entry is being saved. Wait for it to finish before deleting it."
+    )
+
+    response = client.post(
+        endpoint,
+        data={field_name: "Slow save entry"},
+        headers={"X-Inline-Create": "true"},
+    )
+    held_requests[0].fulfill(
+        status=response.status_code, body=response.content, content_type="text/html"
+    )
+    expect(draft).to_have_count(0)
+    saved = page.locator(f'[data-field="{field_name}"]').filter(
+        has_text="Slow save entry"
+    )
+    expect(saved).to_be_visible()
+    expect(page.locator("#error")).to_be_hidden()
+    sections = client.get("/api/resume").json()["sections"]
+    assert len(sections) == 1
+    entry = sections[0] if entry_type == "section" else sections[0]["children"][0]
+    assert entry[field_name] == "Slow save entry"
+
+
 def test_deleting_last_section_restores_empty_message(client, browser_page):
     client.post("/sections", data={"title": "Temporary section"})
     page = browser_page
@@ -22,7 +81,7 @@ def test_cancelling_new_section_restores_empty_message(browser_page, cancel_key)
     page = browser_page
     page.get_by_role("button", name="Add section", exact=True).click()
     expect(page.locator(".empty-resume")).to_have_count(0)
-    assert page.locator('[data-new-section]').evaluate("el => el.matches(':empty')")
+    assert page.locator("[data-new-section]").evaluate("el => el.matches(':empty')")
     page.get_by_role("textbox", name="Section title", exact=True).press(cancel_key)
     expect(page.locator("section")).to_have_count(0)
     expect(page.locator(".empty-resume")).to_be_visible()

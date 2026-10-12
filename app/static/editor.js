@@ -102,7 +102,9 @@ function editState(element) {
   if (!editStates.has(element)) {
     editStates.set(element, {
       saved: element.innerText.trim(),
-      queue: Promise.resolve()
+      queue: Promise.resolve(),
+      pending: 0,
+      submitted: element.innerText.trim()
     });
   }
   return editStates.get(element);
@@ -115,6 +117,10 @@ document.addEventListener('keydown', (event) => {
   if (!element.matches('.inline-edit') || event.isComposing) return;
   if (event.key === 'Escape') {
     if (element.dataset.newBullet || element.dataset.newSection) {
+      if (editState(element).pending) {
+        showError('This entry is being saved. Wait for it to finish before deleting it.');
+        return;
+      }
       element.closest(element.dataset.newSection ? 'section' : 'li').remove();
       updateEmptyState();
       return;
@@ -132,6 +138,11 @@ document.addEventListener('focusout', (event) => {
   const state = editState(element);
   const value = element.innerText.trim();
   if ((element.dataset.newBullet || element.dataset.newSection) && !value) {
+    if (state.pending) {
+      element.textContent = state.submitted;
+      showError('This entry is being saved. Wait for it to finish before deleting it.');
+      return;
+    }
     element.closest(element.dataset.newSection ? 'section' : 'li').remove();
     updateEmptyState();
     return;
@@ -146,6 +157,8 @@ document.addEventListener('focusout', (event) => {
   }
   element.removeAttribute('aria-invalid');
   pendingSaves += 1;
+  state.pending += 1;
+  state.submitted = value;
   setSaveStatus('Saving…');
   state.queue = state.queue.then(async () => {
     if (value === state.saved) {
@@ -183,7 +196,7 @@ document.addEventListener('focusout', (event) => {
         section.dataset.sectionId = savedSection.dataset.sectionId;
         element.dataset.url = savedSection.querySelector('.inline-edit').dataset.url;
         section.querySelector('.section-row').append(savedSection.querySelector(
-          '.bullet-actions'));
+          '.row-actions'));
         section.append(savedSection.querySelector('ul'));
         delete element.dataset.newSection;
         element.removeAttribute('data-placeholder');
@@ -196,7 +209,7 @@ document.addEventListener('focusout', (event) => {
         row.dataset.bulletId = savedBullet.dataset.bulletId;
         element.dataset.url = savedBullet.querySelector('.inline-edit').dataset.url;
         row.querySelector('.bullet-row').append(savedBullet.querySelector(
-          '.bullet-actions'));
+          '.row-actions'));
         delete element.dataset.newBullet;
         delete element.dataset.parentId;
         element.removeAttribute('data-placeholder');
@@ -216,6 +229,7 @@ document.addEventListener('focusout', (event) => {
     }
   }).finally(() => {
     pendingSaves -= 1;
+    state.pending -= 1;
     setSaveStatus(pendingSaves ? 'Saving…' :
       document.querySelector('[data-save-failed], [aria-invalid="true"]') ?
       'Changes need attention' : 'Saved');

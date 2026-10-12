@@ -8,6 +8,8 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from app.pdf import render_pdf
+
 BASE = Path(__file__).resolve().parent
 DB_PATH = Path(
     os.environ.get("RESUME_DB", str(BASE.parent / "data" / "resume.sqlite3"))
@@ -72,7 +74,7 @@ def require_row(db, table, row_id):
     return row
 
 
-def clean(value, limit):
+def validate_text(value, limit):
     value = value.strip()
     if not 1 <= len(value) <= limit:
         raise HTTPException(422, f"Text must contain 1–{limit} characters.")
@@ -104,26 +106,12 @@ def get_resume():
 
 @app.get("/export.pdf")
 def export_pdf():
-    from playwright.sync_api import sync_playwright
-
     html = templates.env.get_template("pdf.html").render(
         sections=get_sections(),
         header=get_header(),
         stylesheet=(BASE / "static" / "style.css").read_text(),
     )
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(channel="chrome", headless=True)
-        try:
-            page = browser.new_page(viewport={"width": 1200, "height": 900})
-            page.set_content(html)
-            page.evaluate("document.fonts.ready")
-            pdf = page.pdf(
-                prefer_css_page_size=True,
-                print_background=True,
-                display_header_footer=False,
-            )
-        finally:
-            browser.close()
+    pdf = render_pdf(html)
     return Response(
         pdf,
         media_type="application/pdf",
@@ -152,7 +140,7 @@ def add_section(request: Request, title: str = Form(...)):
             INSERT INTO sections(title, position)
             VALUES (?, (SELECT COALESCE(MAX(position), -1) + 1 FROM sections))
             """,
-            (clean(title, 200),),
+            (validate_text(title, 200),),
         )
         section = dict(require_row(db, "sections", cursor.lastrowid), children=[])
     if request.headers.get("X-Inline-Create") == "true":
@@ -168,7 +156,7 @@ def edit_section(section_id: int, title: str = Form(...)):
         require_row(db, "sections", section_id)
         db.execute(
             "UPDATE sections SET title = ? WHERE id = ?",
-            (clean(title, 200), section_id),
+            (validate_text(title, 200), section_id),
         )
     return {"saved": True}
 
@@ -224,7 +212,7 @@ def add_bullet(
         ).fetchone()[0]
         cursor = db.execute(
             "INSERT INTO bullets(section_id, parent_id, content, position) VALUES (?, ?, ?, ?)",
-            (section_id, parent_id, clean(content, 5000), position),
+            (section_id, parent_id, validate_text(content, 5000), position),
         )
         bullet = dict(require_row(db, "bullets", cursor.lastrowid), children=[])
     if request.headers.get("X-Inline-Create") == "true":
@@ -242,7 +230,7 @@ def edit_bullet(bullet_id: int, content: str = Form(...)):
         require_row(db, "bullets", bullet_id)
         db.execute(
             "UPDATE bullets SET content = ? WHERE id = ?",
-            (clean(content, 5000), bullet_id),
+            (validate_text(content, 5000), bullet_id),
         )
     return {"saved": True}
 

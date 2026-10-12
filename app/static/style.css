@@ -148,7 +148,7 @@ h2 .inline-edit {
   margin: .15rem 0;
 }
 
-.bullet-actions {
+.row-actions {
   display: flex;
   align-items: center;
   gap: .05rem;
@@ -538,7 +538,7 @@ h2 .inline-edit {
 
   .ruler,
   .ruler-corner,
-  .bullet-actions,
+  .row-actions,
   .add-section-area,
   .empty-resume,
   #error {
