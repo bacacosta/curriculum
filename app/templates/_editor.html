@@ -13,7 +13,7 @@
       <div class="row-actions">
         <button type="button" class="icon-button drag-handle" draggable="true" aria-label="Move bullet" title="Drag to move; arrow keys reorder, Right nests, Left unnests">⠿</button>
         <button type="button" class="icon-button add-sub-bullet" aria-label="Add sub-bullet" title="Add sub-bullet" data-section-id="{{ section_id }}" data-parent-id="{{ bullet.id }}">+</button>
-        <button type="button" class="icon-button delete-bullet" aria-label="Delete bullet and sub-bullets" title="Delete bullet and sub-bullets" data-url="/bullets/{{ bullet.id }}/delete">
+        <button type="button" class="icon-button delete-bullet" aria-label="Delete bullet and all its sub-bullets" title="Delete bullet and all its sub-bullets" data-url="/bullets/{{ bullet.id }}/delete">
           {{ trash_icon() }}
         </button>
       </div>
