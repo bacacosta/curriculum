@@ -70,7 +70,7 @@ This app stores one resume. Multiple resumes would require a `resumes` table and
 | POST | `/bullets/{bullet_id}/delete` | Delete bullet and descendants |
 | POST | `/bullets/{bullet_id}/move` | Move subtree (`section_id`, optional `parent_id`, destination `position` excluding moved bullet) |
 
-Mutation routes accept form data. Edits, deletes, and moves return JSON confirmation. Creation with `X-Inline-Create: true` returns a section or bullet HTML fragment; otherwise `X-Editor-Request: true` returns the editor fragment, and other creation requests redirect to `/`. Positions are zero-based. Interactive API documentation is at `/docs`. Templates escape user text and SQL values use bound parameters.
+Mutation routes accept form data. Edits, deletes, and moves return JSON confirmation. Creation with `X-Inline-Create: true` returns a section or bullet HTML fragment; other creation requests redirect to `/`. Positions are zero-based. Interactive API documentation is at `/docs`. Templates escape user text and SQL values use bound parameters.
 
 ## Tests
 
@@ -78,6 +78,6 @@ Mutation routes accept form data. Edits, deletes, and moves return JSON confirma
 python -m pytest -q
 ```
 
-Tests cover persistence, validation, escaping, nested bullets, reordering, invalid moves, PDF download metadata, PDF text and pagination, empty exports, browser export synchronization, and recovery from failed text saves. PDF and browser tests require Chrome and permission to launch browser processes. Tests use temporary databases and do not modify the saved resume.
+Tests cover persistence, validation, escaping, nested bullets, reordering, invalid moves, PDF download metadata, PDF text and pagination, empty exports, browser export synchronization, recovery from failed text saves, and empty-state updates after deleting or cancelling sections. PDF and browser tests require Chrome and permission to launch browser processes. Tests use temporary databases and do not modify the saved resume.
 
 The app is intended for local use. Authentication, CSRF protection, migrations, and multi-user access remain future work before public deployment.

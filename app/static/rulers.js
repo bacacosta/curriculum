@@ -8,6 +8,7 @@ function rulerImage(extent, start, vertical) {
   const width = vertical ? 26 : extent;
   const height = vertical ? extent : 26;
   const marks = [];
+
   function segment(origin, direction, low, high) {
     const stepSize = 9.45;
     const first = Math.max(0, Math.ceil((direction > 0 ? low - origin : origin - high) / stepSize));
@@ -19,15 +20,19 @@ function rulerImage(extent, start, vertical) {
       const path = vertical ? `M${26 - length} ${point}H26` : `M${point} ${26 - length}V26`;
       marks.push(`<path d="${path}" stroke="#808080" stroke-width=".7"/>`);
       if (major && (step || direction > 0)) {
-        const position = vertical ? `x="10" y="${point}" dominant-baseline="central"` : `x="${point}" y="12"`;
-        marks.push(`<text ${position} text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#646464">${step / 4}</text>`);
+        const position = vertical ? `x="10" y="${point}" dominant-baseline="central"` :
+          `x="${point}" y="12"`;
+        marks.push(
+          `<text ${position} text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#646464">${step / 4}</text>`
+          );
       }
     }
   }
   // Before the page, count outward; after its start, keep counting forward.
   segment(start, -1, 0, Math.min(extent, start));
   segment(start, 1, Math.max(0, start), extent);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#f8f8f8"/>${marks.join('')}</svg>`;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#f8f8f8"/>${marks.join('')}</svg>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
@@ -56,5 +61,7 @@ if (documentPage && horizontalRuler && verticalRuler) {
   alignRulers();
   new ResizeObserver(scheduleRulerUpdate).observe(documentPage);
   window.addEventListener('resize', scheduleRulerUpdate);
-  window.addEventListener('scroll', scheduleRulerUpdate, { passive: true });
+  window.addEventListener('scroll', scheduleRulerUpdate, {
+    passive: true
+  });
 }

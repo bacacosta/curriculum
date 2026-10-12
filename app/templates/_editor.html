@@ -1,3 +1,6 @@
+{% macro trash_icon() %}
+<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
+{% endmacro %}
 {% macro header_field(field, header) %}
 <p class="inline-edit header-field header-{{ field }}" contenteditable="plaintext-only" role="textbox" aria-label="{{ field | capitalize }}" aria-multiline="{{ 'true' if field == 'address' else 'false' }}" tabindex="0" data-url="/header/{{ field }}/edit" data-field="{{ field }}" data-limit="5000" data-allow-empty="true" data-placeholder="{{ field | capitalize }}">{{ header[field] }}</p>
 {% endmacro %}
@@ -11,7 +14,7 @@
         <button type="button" class="icon-button drag-handle" draggable="true" aria-label="Move bullet" title="Drag to move; arrow keys reorder, Right nests, Left unnests">⠿</button>
         <button type="button" class="icon-button add-subbullet" aria-label="Add subbullet" title="Add subbullet" data-section-id="{{ section_id }}" data-parent-id="{{ bullet.id }}">+</button>
         <button type="button" class="icon-button delete-bullet" aria-label="Delete bullet and subbullets" title="Delete bullet and subbullets" data-url="/bullets/{{ bullet.id }}/delete">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
+          {{ trash_icon() }}
         </button>
       </div>
     </div>
@@ -28,7 +31,7 @@
         <button type="button" class="icon-button section-drag-handle" draggable="true" aria-label="Move section" title="Drag to reorder section; Up/Down arrow keys also reorder">⠿</button>
         <button type="button" class="icon-button add-bullet" aria-label="Add bullet" title="Add bullet" data-section-id="{{ section.id }}">+</button>
         <button type="button" class="icon-button delete-section" aria-label="Delete section and all its bullets" title="Delete section and all its bullets" data-url="/sections/{{ section.id }}/delete">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg>
+          {{ trash_icon() }}
         </button>
       </div>
     </div>
