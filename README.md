@@ -1,6 +1,6 @@
 # Resume editor
 
-A single-resume editor using Python 3.10+, FastAPI, SQLite, Jinja templates, and vanilla JavaScript. Edit contact details, sections, bullets, and nested subbullets, then download a styled A4 PDF.
+A single-resume editor using Python 3.10+, FastAPI, SQLite, Jinja templates, and vanilla JavaScript. Edit contact details, sections, bullets, and nested sub-bullets, then download a styled A4 PDF.
 
 ## Run
 
@@ -29,7 +29,7 @@ The header contains `name`, `address`, `email`, and `phone`. The name sits on th
 
 Click any header field, section title, or bullet to edit. Leaving the field or pressing Enter saves; Shift+Enter inserts a line break and Escape cancels unsaved typing. Section titles appear on the left with their controls underneath, and bullets on the right, inside light gray section backgrounds.
 
-The centered plus button adds a section. A section's plus adds a top-level bullet; a bullet's plus adds a nested subbullet. Empty new fields or Escape cancel creation before saving starts. Once a new entry is saving, it stays visible until the request finishes; use its trash button afterward to delete it. Trash buttons ask for confirmation and delete the selected section or bullet together with its descendants.
+The centered plus button adds a section. A section's plus adds a top-level bullet; a bullet's plus adds a nested sub-bullet. Empty new fields or Escape cancel creation before saving starts. Once a new entry is saving, it stays visible until the request finishes; use its trash button afterward to delete it. Trash buttons ask for confirmation and delete the selected section or bullet together with its descendants.
 
 Drag a bullet's ⠿ handle to reorder or move its subtree. Drop at the top/bottom of a row to insert before/after, in the middle to nest, or on a section heading to append at its top level. With the handle focused, Up/Down reorder, Right nests under the previous sibling, and Left moves out one level. Section handles support dragging and Up/Down reordering. Moves save automatically.
 
@@ -45,7 +45,7 @@ The implemented DDL is in `app/schema.sql`.
 | --- | --- | --- |
 | `header` | `id`, `name`, `address`, `email`, `phone` | One contact header (`id = 1`) |
 | `sections` | `id`, `title`, `position` | Ordered resume sections |
-| `bullets` | `id`, `section_id`, `parent_id`, `content`, `position` | Ordered bullets and nested subbullets |
+| `bullets` | `id`, `section_id`, `parent_id`, `content`, `position` | Ordered bullets and nested sub-bullets |
 
 A bullet with `parent_id = NULL` is top-level. Other bullets reference a parent. The composite foreign key `(parent_id, section_id)` keeps parent and child in the same section. Every connection enables foreign keys; section and parent deletion cascade to descendants.
 

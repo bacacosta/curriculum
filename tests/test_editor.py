@@ -97,7 +97,7 @@ def test_validation_and_parent_integrity(client):
             )
 
 
-def test_inline_subbullet_creation_returns_local_row(client):
+def test_inline_sub_bullet_creation_returns_local_row(client):
     client.post("/sections", data={"title": "Work"})
     section = client.get("/api/resume").json()["sections"][0]
     url = f"/sections/{section['id']}/bullets"

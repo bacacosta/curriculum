@@ -259,10 +259,10 @@ document.addEventListener('click', async (event) => {
     section.querySelector('.inline-edit').focus();
     return;
   }
-  const add = event.target.closest('.add-subbullet, .add-bullet');
+  const add = event.target.closest('.add-sub-bullet, .add-bullet');
   if (add) {
-    const isSubbullet = add.matches('.add-subbullet');
-    const parent = add.closest(isSubbullet ? 'li' : 'section');
+    const isSubBullet = add.matches('.add-sub-bullet');
+    const parent = add.closest(isSubBullet ? 'li' : 'section');
     let list = parent.querySelector(':scope > ul');
     if (!list) {
       list = document.createElement('ul');
@@ -277,14 +277,14 @@ document.addEventListener('click', async (event) => {
     row.innerHTML = `
       <div class="bullet-row">
         <p class="content inline-edit" contenteditable="plaintext-only"
-          role="textbox" aria-label="New subbullet" aria-multiline="true" tabindex="0"
+          role="textbox" aria-label="New sub-bullet" aria-multiline="true" tabindex="0"
           data-field="content" data-limit="5000" data-new-bullet="true"
-          data-placeholder="Write a subbullet…"></p>
+          data-placeholder="Write a sub-bullet…"></p>
       </div>
     `;
     const field = row.querySelector('.inline-edit');
     field.dataset.url = `/sections/${add.dataset.sectionId}/bullets`;
-    if (isSubbullet) field.dataset.parentId = add.dataset.parentId;
+    if (isSubBullet) field.dataset.parentId = add.dataset.parentId;
     else {
       field.setAttribute('aria-label', 'New bullet');
       field.dataset.placeholder = 'Write a bullet…';
@@ -297,7 +297,7 @@ document.addEventListener('click', async (event) => {
     const isSection = remove.matches('.delete-section');
     const row = remove.closest(isSection ? 'section' : 'li');
     const message = isSection ? 'Delete this section and all its bullets?' :
-      'Delete this bullet and all its subbullets?';
+      'Delete this bullet and all its sub-bullets?';
     if (!window.confirm(message)) return;
     remove.disabled = true;
     try {
@@ -396,7 +396,7 @@ async function saveBulletMove(bullet, parent, before) {
       parent.append(list);
     }
     list.insertBefore(bullet, before);
-    bullet.querySelectorAll('.add-subbullet').forEach(button => button.dataset.sectionId = section
+    bullet.querySelectorAll('.add-sub-bullet').forEach(button => button.dataset.sectionId = section
       .dataset.sectionId);
     setSaveStatus('Saved');
     bullet.querySelector('.drag-handle').focus();
