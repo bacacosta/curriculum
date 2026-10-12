@@ -45,3 +45,33 @@ def test_invalid_header_blocks_export(browser_page):
     page.get_by_role('button', name='Export PDF', exact=True).click()
     expect(page.locator('#error')).to_have_text('Please fix unsaved changes before exporting.')
     expect(page.get_by_role('button', name='Export PDF', exact=True)).to_be_enabled()
+
+
+def test_reverting_failed_header_save_clears_error(browser_page):
+    page = browser_page
+    page.route('**/header/name/edit', lambda route: route.fulfill(status=500, body='Save failed'))
+    name = page.get_by_role('textbox', name='Name', exact=True)
+    name.fill('Unsaved name')
+    name.press('Tab')
+    expect(name).to_have_attribute('data-save-failed', 'true')
+    name.fill('')
+    name.press('Tab')
+    expect(name).not_to_have_attribute('data-save-failed', 'true')
+    expect(page.locator('#error')).to_be_hidden()
+
+
+def test_export_blocks_when_pending_deletion_fails(client, browser_page):
+    client.post('/sections', data={'title': 'Keep this section'})
+    page = browser_page
+    page.reload()
+    held_requests = []
+    page.route('**/delete', lambda route: held_requests.append(route))
+    page.once('dialog', lambda dialog: dialog.accept())
+    page.get_by_role('button', name='Delete section and all its bullets').click()
+    page.wait_for_function('pendingMutations.size === 1')
+    page.get_by_role('button', name='Export PDF', exact=True).click()
+    expect(page.locator('#editor')).to_have_attribute('inert', '')
+    held_requests[0].fulfill(status=500, body='Delete failed')
+    expect(page.locator('#error')).to_have_text('A pending change failed. Please retry it before exporting.')
+    expect(page.get_by_role('button', name='Export PDF', exact=True)).to_be_enabled()
+    expect(page.locator('section h2')).to_have_text('Keep this section')

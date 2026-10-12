@@ -111,7 +111,7 @@ h2 .inline-edit { display: block; overflow-wrap: anywhere; }
 @media print {
   * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   :root, body { background: #fff; }
-  .ruler, .ruler-corner, .bullet-actions, .add-section-area, #error { display: none; }
+  .ruler, .ruler-corner, .bullet-actions, .add-section-area, .empty-resume, #error { display: none; }
   .document-workspace { display: block; width: auto; min-height: 0; margin: 0; padding: 0; }
   .document-page { border: 0; box-shadow: none; padding: 0; min-height: 0; font-size: 15px; }
   #editor { min-height: 0; }

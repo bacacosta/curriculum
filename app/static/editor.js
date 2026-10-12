@@ -14,8 +14,10 @@ document.addEventListener('click', async (event) => {
   editor.inert = true;
   const error = document.getElementById('error');
   try {
+    const mutations = [...pendingMutations];
     await Promise.all([...document.querySelectorAll('.inline-edit')].map(element => editStates.get(element)?.queue));
-    await Promise.all([...pendingMutations]);
+    const responses = await Promise.all(mutations);
+    if (responses.some(response => !response.ok)) throw new Error('A pending change failed. Please retry it before exporting.');
     if (document.querySelector('[data-save-failed], [aria-invalid="true"]')) throw new Error('Please fix unsaved changes before exporting.');
     const response = await fetch('/export.pdf');
     if (!response.ok) throw new Error('Could not export the PDF. Please try again.');
@@ -110,11 +112,15 @@ document.addEventListener('focusout', (event) => {
   pendingSaves += 1;
   setSaveStatus('Saving…');
   state.queue = state.queue.then(async () => {
-    if (value === state.saved) return;
+    if (value === state.saved) {
+      element.removeAttribute('data-save-failed');
+      if (!document.querySelector('[data-save-failed], [aria-invalid="true"]')) error.hidden = true;
+      return;
+    }
     try {
       const response = await mutationRequest(element.dataset.url, {
         method: 'POST',
-        headers: { 'X-Editor-Request': 'true', 'X-Inline-Create': element.dataset.newBullet || element.dataset.newSection ? 'true' : 'false' },
+        headers: { 'X-Inline-Create': element.dataset.newBullet || element.dataset.newSection ? 'true' : 'false' },
         body: new URLSearchParams({ [element.dataset.field]: value,
           ...(element.dataset.newBullet && element.dataset.parentId ? { parent_id: element.dataset.parentId } : {}) }),
       });
@@ -209,7 +215,7 @@ document.addEventListener('click', async (event) => {
     if (!window.confirm(message)) return;
     remove.disabled = true;
     try {
-      const response = await mutationRequest(remove.dataset.url, { method: 'POST', headers: { 'X-Editor-Request': 'true' } });
+      const response = await mutationRequest(remove.dataset.url, { method: 'POST' });
       if (!response.ok) throw new Error(`Could not delete this ${isSection ? 'section' : 'bullet'}. Please try again.`);
       row.remove();
     } catch (failure) {

@@ -28,7 +28,7 @@ def browser_page(client):
 
         page.route('http://testserver/**', serve)
         page.goto('http://testserver/')
-        yield page
-        browser.close()
-
-
+        try:
+            yield page
+        finally:
+            browser.close()

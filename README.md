@@ -33,7 +33,7 @@ The centered plus button adds a section. A section's plus adds a top-level bulle
 
 Drag a bullet's ⠿ handle to reorder or move its subtree. Drop at the top/bottom of a row to insert before/after, in the middle to nest, or on a section heading to append at its top level. With the handle focused, Up/Down reorder, Right nests under the previous sibling, and Left moves out one level. Section handles support dragging and Up/Down reordering. Moves save automatically.
 
-The PDF icon on the bottom right downloads `resume.pdf` directly. It waits for pending text saves, moves, and deletions, and temporarily locks editing during export. Invalid or failed text saves block export. The PDF preserves the document layout and gray section backgrounds, hides editing controls and rulers, and includes only page numbers in its footer. The globe beside PDF is a placeholder for future web export and has no action.
+The PDF icon on the bottom right downloads `resume.pdf` directly. It waits for pending text saves, moves, and deletions, and temporarily locks editing during export. Invalid or failed text saves block export, as do pending moves or deletions that fail while export is waiting. The PDF preserves the document layout and gray section backgrounds, hides editing controls, rulers, and the empty-resume prompt, and includes only page numbers in its footer. The globe beside PDF is a placeholder for future web export and has no action.
 
 The editor requires JavaScript; it has no external script or CDN dependency. All requests use the browser's Fetch API.
 
@@ -78,6 +78,6 @@ Mutation routes accept form data. Edits, deletes, and moves return JSON confirma
 python -m pytest -q
 ```
 
-Tests cover persistence, validation, escaping, nested bullets, reordering, invalid moves, PDF download metadata, PDF text and pagination, and browser export synchronization. PDF and browser tests require Chrome and permission to launch browser processes. Tests use temporary databases and do not modify the saved resume.
+Tests cover persistence, validation, escaping, nested bullets, reordering, invalid moves, PDF download metadata, PDF text and pagination, empty exports, browser export synchronization, and recovery from failed text saves. PDF and browser tests require Chrome and permission to launch browser processes. Tests use temporary databases and do not modify the saved resume.
 
 The app is intended for local use. Authentication, CSRF protection, migrations, and multi-user access remain future work before public deployment.

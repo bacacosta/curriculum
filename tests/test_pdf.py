@@ -3,6 +3,14 @@ from io import BytesIO
 from pypdf import PdfReader
 
 
+def test_empty_pdf_has_only_page_number(client):
+    response = client.get('/export.pdf')
+    assert response.status_code == 200
+    pdf = PdfReader(BytesIO(response.content))
+    assert len(pdf.pages) == 1
+    assert pdf.pages[0].extract_text().strip() == '1'
+
+
 def test_pdf_export_contents_pagination_and_download(client):
     for field, value in {
         'name': 'Ada Example', 'address': 'First Street, Berlin',

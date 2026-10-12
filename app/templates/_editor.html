@@ -1,3 +1,6 @@
+{% macro header_field(field, header) %}
+<p class="inline-edit header-field header-{{ field }}" contenteditable="plaintext-only" role="textbox" aria-label="{{ field | capitalize }}" aria-multiline="{{ 'true' if field == 'address' else 'false' }}" tabindex="0" data-url="/header/{{ field }}/edit" data-field="{{ field }}" data-limit="5000" data-allow-empty="true" data-placeholder="{{ field | capitalize }}">{{ header[field] }}</p>
+{% endmacro %}
 {% macro bullet_list(bullets, section_id) %}
 <ul>
 {% for bullet in bullets %}
@@ -35,12 +38,14 @@
 <div id="editor">
   {% if header is defined %}
   <header class="resume-header" aria-label="Contact details">
-    {% for field in ['name', 'address', 'email', 'phone'] %}
-    {% if field == 'address' %}<div class="header-details">{% endif %}
-    {% if field == 'email' %}<div class="header-contact">{% endif %}
-    <p class="inline-edit header-field header-{{ field }}" contenteditable="plaintext-only" role="textbox" aria-label="{{ field | capitalize }}" aria-multiline="{{ 'true' if field == 'address' else 'false' }}" tabindex="0" data-url="/header/{{ field }}/edit" data-field="{{ field }}" data-limit="5000" data-allow-empty="true" data-placeholder="{{ field | capitalize }}">{{ header[field] }}</p>
-    {% if field == 'phone' %}</div></div>{% endif %}
-    {% endfor %}
+    {{ header_field('name', header) }}
+    <div class="header-details">
+      {{ header_field('address', header) }}
+      <div class="header-contact">
+        {{ header_field('email', header) }}
+        {{ header_field('phone', header) }}
+      </div>
+    </div>
   </header>
   {% endif %}
   {% for section in sections %}
