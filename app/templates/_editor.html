@@ -11,7 +11,7 @@
     <div class="bullet-row">
       <p class="content inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="Bullet text" aria-multiline="true" tabindex="0" data-url="/bullets/{{ bullet.id }}/edit" data-field="content" data-limit="5000">{{ bullet.content }}</p>
       <div class="row-actions">
-        <button type="button" class="icon-button drag-handle" draggable="true" aria-label="Move bullet" title="Drag to move; arrow keys reorder, Right nests, Left unnests">⠿</button>
+        <button type="button" class="icon-button drag-handle" draggable="true" aria-label="Move bullet" title="Drag or use arrow keys to reorder, nest, and un-nest bullets">⠿</button>
         <button type="button" class="icon-button add-sub-bullet" aria-label="Add sub-bullet" title="Add sub-bullet" data-section-id="{{ section_id }}" data-parent-id="{{ bullet.id }}">+</button>
         <button type="button" class="icon-button delete-bullet" aria-label="Delete bullet and all its sub-bullets" title="Delete bullet and all its sub-bullets" data-url="/bullets/{{ bullet.id }}/delete">
           {{ trash_icon() }}
@@ -28,7 +28,7 @@
     <div class="section-row">
       <h2><span class="inline-edit" contenteditable="plaintext-only" role="textbox" aria-label="Section title" tabindex="0" data-url="/sections/{{ section.id }}/edit" data-field="title" data-limit="200">{{ section.title }}</span></h2>
       <div class="row-actions">
-        <button type="button" class="icon-button section-drag-handle" draggable="true" aria-label="Move section" title="Drag to reorder section; Up/Down arrow keys also reorder">⠿</button>
+        <button type="button" class="icon-button section-drag-handle" draggable="true" aria-label="Move section" title="Drag or use up and down arrow keys to reorder section">⠿</button>
         <button type="button" class="icon-button add-bullet" aria-label="Add bullet" title="Add bullet" data-section-id="{{ section.id }}">+</button>
         <button type="button" class="icon-button delete-section" aria-label="Delete section and all its bullets" title="Delete section and all its bullets" data-url="/sections/{{ section.id }}/delete">
           {{ trash_icon() }}
